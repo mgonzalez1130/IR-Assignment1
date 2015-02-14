@@ -1,20 +1,23 @@
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
-public class Parser {
+public class testParser {
 
-    public static List<String[]> getBuilders(File file) {
-        List<String[]> documents = new ArrayList<String[]>();
+    public static void main(String[] args) {
+        getBuilders("ap890103");
+    }
+
+    public static void getBuilders(String string) {
+
+        System.out.println("Reading file");
 
         // Initialize the BufferedReader
         BufferedReader docReader = null;
         try {
-            docReader = new BufferedReader(new FileReader(file));
+            docReader = new BufferedReader(new FileReader(string));
+            System.out.println("Initialized BufferedReader");
         } catch (FileNotFoundException e) {
             System.out.println("File not found!");
             e.printStackTrace();
@@ -27,7 +30,6 @@ public class Parser {
             boolean readingText = false;
             StringBuilder textBuilder = new StringBuilder();
             while ((line = docReader.readLine()) != null) {
-                // Note: my also need to include escape for apostrophe
                 line = line.replaceAll("[^a-zA-Z0-9\\s\\>\\<\\-\\/\\']", " ")
                         .trim();
                 if (line.equals(""))
@@ -38,6 +40,10 @@ public class Parser {
                     docId = splitLine[1];
                     // System.out.println("ID: " + docId);
                 }
+                if (docId.equals("AP890103-0215")) {
+                    System.out.println(line);
+                }
+
                 if ((splitLine[0]).equals("<TEXT>")) {
                     readingText = true;
                     continue;
@@ -52,7 +58,7 @@ public class Parser {
                     continue;
                 }
                 if ((splitLine[0]).equals("</DOC>")) {
-                    documents.add(generateJson(docId, textBuilder));
+                    // System.out.println(textBuilder.toString());
                     textBuilder = new StringBuilder();
                 }
             }
@@ -66,16 +72,5 @@ public class Parser {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        // System.out.println("Number of docs: " + documents.size());
-        return documents;
-    }
-
-    private static String[] generateJson(String docId, StringBuilder textBuilder) {
-        String[] result = new String[2];
-        String json = "{" + "\"text\": " + "\"" + textBuilder.toString() + "\""
-                + "}";
-        result[0] = docId;
-        result[1] = json;
-        return result;
     }
 }
