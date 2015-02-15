@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Parser {
+public class DocumentParser {
 
     public static List<String[]> getBuilders(File file) {
         List<String[]> documents = new ArrayList<String[]>();
