@@ -20,33 +20,29 @@ public class Models {
     private static double K1 = 1.2;
     private static double K2 = 100;
     private static double B = 0.75;
+    private static int df;
+    private static int ttf;
     
     public Models () {
         docLengths = deserializeDocLengths();
     }
     
     public Map<String, Double> okapiTF (Map<String, Map<String, Integer>> termStats) {
-        Map<String, Double> results = new HashMap<>();
+        HashMap<String, Double> results = new HashMap<>();
 
         //iterate through the statistical results for each query term in the query
-        Iterator termStatsIt = termStats.entrySet().iterator();
-        while (termStatsIt.hasNext()) {
-            Map.Entry pair = (Map.Entry) termStatsIt.next();
-            String queryTerm = (String) pair.getKey();
-            Map<String, Integer> queryTermStats = (Map<String, Integer>) pair.getValue();
+        for (String queryTerm : termStats.keySet()) {
+            Map<String, Integer> queryTermStats = (Map<String, Integer>) termStats.get(queryTerm);
             
-            Integer ttf = queryTermStats.get("ttf");
+            ttf = queryTermStats.get("ttf");
             queryTermStats.remove("ttf");
-            Integer df = queryTermStats.get("df");
+            df = queryTermStats.get("df");
             queryTermStats.remove("df");
             
             //iterate through map containing df, ttf, and tf's for all documents that matched
             //the current queryTerm
-            Iterator queryTermStatsIt = queryTermStats.entrySet().iterator();
-            while(queryTermStatsIt.hasNext()) {
-                Map.Entry temStatsPair = (Map.Entry) queryTermStatsIt.next();
-                String docId = (String) pair.getKey();
-                Integer tf = (Integer) pair.getValue();
+            for(String docId : queryTermStats.keySet()) {
+                Integer tf = queryTermStats.get(docId);
                 
                 if (!results.containsKey(docId)) {
                     results.put(docId, 0.0);
@@ -57,34 +53,23 @@ public class Models {
                                 1.5*(docLengths.get(docId) / avgDocLength));
                 
                 results.put(docId, results.get(docId) + okapiTermScore);
-                System.out.println("Okapi score for " + docId + ": " + okapiTermScore);
+                //System.out.println("Okapi score for " + docId + ": " + okapiTermScore);
             }
         }
-        return sortHashMapByValues((HashMap) results);
+        return sortHashMapByValues(results);
     }
     
     public Map<String, Double> tfIdf(Map<String, Map<String, Integer>> termStats) {
         HashMap<String, Double> results = new HashMap<>();
 
         //iterate through the statistical results for each query term in the query
-        Iterator termStatsIt = termStats.entrySet().iterator();
-        while (termStatsIt.hasNext()) {
-            Map.Entry pair = (Map.Entry) termStatsIt.next();
-            String queryTerm = (String) pair.getKey();
-            Map<String, Integer> queryTermStats = (Map<String, Integer>) pair.getValue();
-            
-            Integer ttf = queryTermStats.get("ttf");
-            queryTermStats.remove("ttf");
-            Integer df = queryTermStats.get("df");
-            queryTermStats.remove("df");
+        for (String queryTerm : termStats.keySet()) {
+            Map<String, Integer> queryTermStats = (Map<String, Integer>) termStats.get(queryTerm);
             
             //iterate through map containing df, ttf, and tf's for all documents that matched
             //the current queryTerm
-            Iterator queryTermStatsIt = queryTermStats.entrySet().iterator();
-            while(queryTermStatsIt.hasNext()) {
-                Map.Entry temStatsPair = (Map.Entry) queryTermStatsIt.next();
-                String docId = (String) pair.getKey();
-                Integer tf = (Integer) pair.getValue();
+            for(String docId : queryTermStats.keySet()) {
+                Integer tf = queryTermStats.get(docId);
                 
                 if (!results.containsKey(docId)) {
                     results.put(docId, 0.0);
@@ -96,7 +81,7 @@ public class Models {
                 tfidfScore = tfidfScore * Math.log(NUM_OF_DOCS / (double)df);
                 
                 results.put(docId, results.get(docId) + tfidfScore);
-                System.out.println("TF-IDF score for " + docId + ": " + tfidfScore);
+                //System.out.println("TF-IDF score for " + docId + ": " + tfidfScore);
             }
         }
         return sortHashMapByValues(results);
@@ -106,24 +91,13 @@ public class Models {
         HashMap<String, Double> results = new HashMap<>();
 
         //iterate through the statistical results for each query term in the query
-        Iterator termStatsIt = termStats.entrySet().iterator();
-        while (termStatsIt.hasNext()) {
-            Map.Entry pair = (Map.Entry) termStatsIt.next();
-            String queryTerm = (String) pair.getKey();
-            Map<String, Integer> queryTermStats = (Map<String, Integer>) pair.getValue();
-            
-            Integer ttf = queryTermStats.get("ttf");
-            queryTermStats.remove("ttf");
-            Integer df = queryTermStats.get("df");
-            queryTermStats.remove("df");
+        for (String queryTerm : termStats.keySet()) {
+            Map<String, Integer> queryTermStats = (Map<String, Integer>) termStats.get(queryTerm);
             
             //iterate through map containing df, ttf, and tf's for all documents that matched
             //the current queryTerm
-            Iterator queryTermStatsIt = queryTermStats.entrySet().iterator();
-            while(queryTermStatsIt.hasNext()) {
-                Map.Entry temStatsPair = (Map.Entry) queryTermStatsIt.next();
-                String docId = (String) pair.getKey();
-                Integer tf = (Integer) pair.getValue();
+            for(String docId : queryTermStats.keySet()) {
+                Integer tf = queryTermStats.get(docId);
                 
                 if (!results.containsKey(docId)) {
                     results.put(docId, 0.0);
@@ -137,7 +111,7 @@ public class Models {
                 double okapiBM25Score = term1 * term2 * term3;
                 
                 results.put(docId, results.get(docId) + okapiBM25Score);
-                System.out.println("Okapi BM25 score for " + docId + ": " + okapiBM25Score);
+                //System.out.println("Okapi BM25 score for " + docId + ": " + okapiBM25Score);
             }
         }
         return sortHashMapByValues(results);
@@ -147,34 +121,24 @@ public class Models {
         HashMap<String, Double> results = new HashMap<>();
 
         //iterate through the statistical results for each query term in the query
-        Iterator termStatsIt = termStats.entrySet().iterator();
-        while (termStatsIt.hasNext()) {
-            Map.Entry pair = (Map.Entry) termStatsIt.next();
-            String queryTerm = (String) pair.getKey();
-            Map<String, Integer> queryTermStats = (Map<String, Integer>) pair.getValue();
-            
-            Integer ttf = queryTermStats.get("ttf");
-            queryTermStats.remove("ttf");
-            Integer df = queryTermStats.get("df");
-            queryTermStats.remove("df");
+        for (String queryTerm : termStats.keySet()) {
+            Map<String, Integer> queryTermStats = (Map<String, Integer>) termStats.get(queryTerm);
             
             //iterate through map containing df, ttf, and tf's for all documents that matched
             //the current queryTerm
-            Iterator queryTermStatsIt = queryTermStats.entrySet().iterator();
-            while(queryTermStatsIt.hasNext()) {
-                Map.Entry temStatsPair = (Map.Entry) queryTermStatsIt.next();
-                String docId = (String) pair.getKey();
-                Integer tf = (Integer) pair.getValue();
+            for(String docId : queryTermStats.keySet()) {
+                Integer tf = queryTermStats.get(docId);
                 
                 if (!results.containsKey(docId)) {
                     results.put(docId, 0.0);
                 }
                 
-                double p_laplace = (tf + 1) / (docLengths.get(docId) + vocabSize);
+                
+                double p_laplace = (tf + 1) / ((double)docLengths.get(docId) + vocabSize);
                 double LMLaplace = Math.log(p_laplace);
                 
                 results.put(docId, results.get(docId) + LMLaplace);
-                System.out.println("LM with Laplace Smoothing score for " + docId + ": " + LMLaplace);
+                //System.out.println("LM with Laplace Smoothing score for " + docId + ": " + LMLaplace);
             }
         }
         return sortHashMapByValues(results);
@@ -184,34 +148,26 @@ public class Models {
         HashMap<String, Double> results = new HashMap<>();
 
         //iterate through the statistical results for each query term in the query
-        Iterator termStatsIt = termStats.entrySet().iterator();
-        while (termStatsIt.hasNext()) {
-            Map.Entry pair = (Map.Entry) termStatsIt.next();
-            String queryTerm = (String) pair.getKey();
-            Map<String, Integer> queryTermStats = (Map<String, Integer>) pair.getValue();
-            
-            Integer ttf = queryTermStats.get("ttf");
-            queryTermStats.remove("ttf");
-            Integer df = queryTermStats.get("df");
-            queryTermStats.remove("df");
+        for (String queryTerm : termStats.keySet()) {
+            Map<String, Integer> queryTermStats = (Map<String, Integer>) termStats.get(queryTerm);
             
             //iterate through map containing df, ttf, and tf's for all documents that matched
             //the current queryTerm
-            Iterator queryTermStatsIt = queryTermStats.entrySet().iterator();
-            while(queryTermStatsIt.hasNext()) {
-                Map.Entry temStatsPair = (Map.Entry) queryTermStatsIt.next();
-                String docId = (String) pair.getKey();
-                Integer tf = (Integer) pair.getValue();
+            for(String docId : queryTermStats.keySet()) {
+                Integer tf = queryTermStats.get(docId);
                 
                 if (!results.containsKey(docId)) {
                     results.put(docId, 0.0);
                 }
                 
-                double p_jm = ttf / vocabSize;
-                double LMJMScore = Math.log(p_jm);
+                double currentDocLength = docLengths.get(docId);
+                double lambda = currentDocLength / (currentDocLength + avgDocLength);
+                double term1 = lambda * (tf / currentDocLength);
+                double term2 = (1 - lambda) * (ttf / vocabSize);
+                double LMJMScore = Math.log(term1 + term2);
                 
                 results.put(docId, results.get(docId) + LMJMScore);
-                System.out.println("LM with JM smoothing score for " + docId + ": " + LMJMScore);
+                //System.out.println("LM with JM smoothing score for " + docId + ": " + LMJMScore);
             }
         }
         return sortHashMapByValues(results);

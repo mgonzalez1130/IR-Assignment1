@@ -8,6 +8,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -40,7 +41,7 @@ public class Main {
     private static final int NUM_OF_QUERIES = 25;
 
     static Client client = new TransportClient()
-            .addTransportAddress(new InetSocketTransportAddress("10.0.0.12",
+            .addTransportAddress(new InetSocketTransportAddress("192.168.1.52",
                     9300));
 
     public static void main(String[] args) throws IOException {
@@ -50,9 +51,14 @@ public class Main {
         processQueries();
     }
 
-
     private static void processQueries() {
-        File results = new File("results.txt");
+        File file = new File("results.txt");
+        try {
+            file.createNewFile();
+        } catch (IOException e1) {
+            System.out.println("Problem creating results file");
+            e1.printStackTrace();
+        }
         QueryParser qp = new QueryParser("stoplist.txt");
         BufferedReader br = null;
         try {
@@ -61,11 +67,11 @@ public class Main {
             System.out.println("File not found!");
             e.printStackTrace();
         }
-        BufferedWriter bw = null;
+        PrintWriter pw = null;
         try {
-            bw = new BufferedWriter(new FileWriter("results.txt"));
+            pw = new PrintWriter(file);
         } catch (IOException e) {
-            System.out.println("File not found for wtier!");
+            System.out.println("File not found for writer!");
             e.printStackTrace();
         }
         
@@ -73,13 +79,21 @@ public class Main {
             String line;
             Integer queryNumber = 1;
             while ((line = br.readLine()) != null) {
+                System.out.println("Processing query number: " + queryNumber);
                 Map<String, Map<String, Integer>> queryStats = new HashMap<>();
                 ArrayList<String> queryTerms = qp.parseQuery(line);
+                System.out.println("Terms in query: " + queryTerms.size());
+                
+                Integer queryCounter = 1;
                 for (String query : queryTerms) {
+                    System.out.println("Getting stats for term " + queryCounter 
+                            + " in query " + queryNumber);
                     Map<String, Integer> termStats = getTermStats(query);
                     queryStats.put(query, termStats);
+                    queryCounter++;
                 }
-                printModelResults(queryStats, bw, queryNumber);
+                System.out.println("Finished getting stats for query terms.");
+                printModelResults(queryStats, pw, queryNumber);
                 queryNumber++;
             }
         }catch (IOException e) {
@@ -88,54 +102,51 @@ public class Main {
         
         try {
             br.close();
+            pw.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-
     private static void printModelResults(
-            Map<String, Map<String, Integer>> queryStats, BufferedWriter bw, Integer queryNumber) {
+            Map<String, Map<String, Integer>> queryStats, PrintWriter bw, Integer queryNumber) {
         Models models = new Models();
  
+        System.out.println("Starting Okapi TF");
         Map<String, Double> resultsMap = models.okapiTF(queryStats);
         writeToFile(bw, queryNumber, resultsMap);
         
+        System.out.println("Starting TF-IDF");
         resultsMap = models.tfIdf(queryStats);
         writeToFile(bw, queryNumber, resultsMap);
         
+        System.out.println("Starting Okapi BM25");
         resultsMap = models.okapiBM25(queryStats);
         writeToFile(bw, queryNumber, resultsMap);
         
+        System.out.println("Starting LM-Laplace");
         resultsMap = models.LMLaplace(queryStats);
         writeToFile(bw, queryNumber, resultsMap);
         
+        System.out.println("Starting LM-JM");
         resultsMap = models.LMJM(queryStats);
         writeToFile(bw, queryNumber, resultsMap);
-        
     }
 
-
-    private static void writeToFile(BufferedWriter bw, Integer queryNumber,
+    private static void writeToFile(PrintWriter bw, Integer queryNumber,
             Map<String, Double> resultsMap) {
         Iterator resultsMapIt = resultsMap.entrySet().iterator();
         Integer rank = 1;
         Integer counter = 1;
-        while (counter <= 100) {
+        while (counter <= 100 && resultsMapIt.hasNext()) {
             Map.Entry pair = (Map.Entry)resultsMapIt.next();
             String docId = (String) pair.getKey();
             Double score = (Double) pair.getValue();
-            try {
-                bw.write(queryNumber + " Q0 " + docId + " " + rank + " " + score + " Exp");
-                bw.newLine();
-            } catch (IOException e) {
-                System.out.println("Problem writing new line and query result to file");
-                e.printStackTrace();
-            }
+            String line = queryNumber + " Q0 " + docId + " " + rank + " " + score + " Exp";
+            bw.println(line);
             rank++;
         }
     }
-
 
     /**
      * Builds the index. Includes a line to input the docId's into the
@@ -254,7 +265,7 @@ public class Main {
                 .setSearchType(SearchType.DFS_QUERY_THEN_FETCH)
                 .setScroll(new TimeValue(60000))
                 .setQuery(QueryBuilders.matchQuery("text", queryTerm))
-                .setExplain(true).setSize(1000000).execute().actionGet();
+                .setExplain(true).setSize(1000).execute().actionGet();
 
         Integer df = (int) scrollResp.getHits().getTotalHits();
         // System.out.println("Executed search");
