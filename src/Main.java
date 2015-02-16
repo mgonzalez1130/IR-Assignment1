@@ -1,6 +1,10 @@
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -10,6 +14,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.lucene.search.Explanation;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
@@ -42,14 +47,95 @@ public class Main {
 
         // buildIndex();
         getStatsForModels();
+        processQueries();
+    }
 
+
+    private static void processQueries() {
+        File results = new File("results.txt");
         QueryParser qp = new QueryParser("stoplist.txt");
-        ArrayList<String> queryArray = qp
-                .parseQuery("91.   Document will identify acquisition by the U.S. Army of specified advanced weapons systems.");
-        for (String string : queryArray) {
-            System.out.println(string);
+        BufferedReader br = null;
+        try {
+            br = new BufferedReader(new FileReader("query_desc.51-100.short.txt"));
+        } catch (IOException e) {
+            System.out.println("File not found!");
+            e.printStackTrace();
+        }
+        BufferedWriter bw = null;
+        try {
+            bw = new BufferedWriter(new FileWriter("results.txt"));
+        } catch (IOException e) {
+            System.out.println("File not found for wtier!");
+            e.printStackTrace();
+        }
+        
+        try {
+            String line;
+            Integer queryNumber = 1;
+            while ((line = br.readLine()) != null) {
+                Map<String, Map<String, Integer>> queryStats = new HashMap<>();
+                ArrayList<String> queryTerms = qp.parseQuery(line);
+                for (String query : queryTerms) {
+                    Map<String, Integer> termStats = getTermStats(query);
+                    queryStats.put(query, termStats);
+                }
+                printModelResults(queryStats, bw, queryNumber);
+                queryNumber++;
+            }
+        }catch (IOException e) {
+            e.printStackTrace();
+        }
+        
+        try {
+            br.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
+
+
+    private static void printModelResults(
+            Map<String, Map<String, Integer>> queryStats, BufferedWriter bw, Integer queryNumber) {
+        Models models = new Models();
+ 
+        Map<String, Double> resultsMap = models.okapiTF(queryStats);
+        writeToFile(bw, queryNumber, resultsMap);
+        
+        resultsMap = models.tfIdf(queryStats);
+        writeToFile(bw, queryNumber, resultsMap);
+        
+        resultsMap = models.okapiBM25(queryStats);
+        writeToFile(bw, queryNumber, resultsMap);
+        
+        resultsMap = models.LMLaplace(queryStats);
+        writeToFile(bw, queryNumber, resultsMap);
+        
+        resultsMap = models.LMJM(queryStats);
+        writeToFile(bw, queryNumber, resultsMap);
+        
+    }
+
+
+    private static void writeToFile(BufferedWriter bw, Integer queryNumber,
+            Map<String, Double> resultsMap) {
+        Iterator resultsMapIt = resultsMap.entrySet().iterator();
+        Integer rank = 1;
+        Integer counter = 1;
+        while (counter <= 100) {
+            Map.Entry pair = (Map.Entry)resultsMapIt.next();
+            String docId = (String) pair.getKey();
+            Double score = (Double) pair.getValue();
+            try {
+                bw.write(queryNumber + " Q0 " + docId + " " + rank + " " + score + " Exp");
+                bw.newLine();
+            } catch (IOException e) {
+                System.out.println("Problem writing new line and query result to file");
+                e.printStackTrace();
+            }
+            rank++;
+        }
+    }
+
 
     /**
      * Builds the index. Includes a line to input the docId's into the
@@ -84,7 +170,7 @@ public class Main {
         // get doc lengths for every document - done once and serialized
         // serializeDocLengths();
         // System.out.println(docLengths.entrySet().size());
-        deserializeDocLenghts();
+        deserializeDocLengths();
 
         // get vocabulary size - done once and saved
         // vocabSize = getVocabularySize(client, "ap_dataset", "document",
@@ -102,7 +188,7 @@ public class Main {
      * Deserializes the docLenghts.ser file, which contains a Map with the
      * document lengths of every document in the corpus
      */
-    private static void deserializeDocLenghts() {
+    private static void deserializeDocLengths() {
 
         try {
             FileInputStream fileIn = new FileInputStream("docLenghts.ser");
@@ -160,7 +246,7 @@ public class Main {
      * @return a hashmap with df, ttf, and <docno, tf> pairs for every document
      *         that returned a match
      */
-    private Map<String, Integer> getTermStats(String queryTerm) {
+    private static Map<String, Integer> getTermStats(String queryTerm) {
 
         Map<String, Integer> results = new HashMap<>();
 
@@ -180,8 +266,7 @@ public class Main {
         Integer ttf = 0;
         for (SearchHit hit : scrollResp.getHits().getHits()) {
             String docno = hit.getId();
-            int tf = (int) hit.getExplanation().getDetails()[0].getDetails()[0]
-                    .getDetails()[0].getValue();
+            int tf = getTermFrequency(hit.getExplanation());
             // System.out.println(docno);
             // System.out.println(tf);
 
@@ -190,6 +275,26 @@ public class Main {
         }
         results.put("ttf", ttf);
         return results;
+    }
+    
+    /**
+     * Helper function for getting the term frequency from the explanation
+     * @param explanation
+     * @return
+     */
+    private static int getTermFrequency(Explanation explanation) {
+        if ((explanation != null) && (explanation.getDetails() != null)) {
+            for (Explanation newExplanation : explanation.getDetails()) {
+                if (newExplanation.getDescription().startsWith("termFreq=")) {
+                    return (int) newExplanation.getValue();
+                }
+                int tf = getTermFrequency(newExplanation);
+                if (tf != -1) {
+                    return tf;
+                }
+            }
+        }
+        return -1;
     }
 
     /**
