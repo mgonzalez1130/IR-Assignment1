@@ -194,6 +194,9 @@ public class Models {
         return tempDocLengths;
     }
     
+    //Returns the given HashMap as a LinkedHashMap sorted in descending order
+    //This method was copied from a post on stack overflow found at:
+    //http://stackoverflow.com/questions/8119366/sorting-hashmap-by-values
     private LinkedHashMap sortHashMapByValues(HashMap passedMap) {
         List mapKeys = new ArrayList(passedMap.keySet());
         List mapValues = new ArrayList(passedMap.values());
