@@ -145,6 +145,7 @@ public class Main {
             String line = queryNumber + " Q0 " + docId + " " + rank + " " + score + " Exp";
             bw.println(line);
             rank++;
+            counter++;
         }
     }
 
