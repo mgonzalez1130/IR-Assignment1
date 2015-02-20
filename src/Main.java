@@ -1,5 +1,4 @@
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -8,7 +7,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -41,8 +39,8 @@ public class Main {
     private static final int NUM_OF_QUERIES = 25;
 
     static Client client = new TransportClient()
-            .addTransportAddress(new InetSocketTransportAddress("192.168.1.52",
-                    9300));
+    .addTransportAddress(new InetSocketTransportAddress("10.0.0.12",
+            9300));
 
     public static void main(String[] args) throws IOException {
 
@@ -62,90 +60,108 @@ public class Main {
         QueryParser qp = new QueryParser("stoplist.txt");
         BufferedReader br = null;
         try {
-            br = new BufferedReader(new FileReader("query_desc.51-100.short.txt"));
+            br = new BufferedReader(new FileReader(
+                    "query_desc.51-100.short.txt"));
         } catch (IOException e) {
             System.out.println("File not found!");
             e.printStackTrace();
         }
-        PrintWriter pw = null;
-        try {
-            pw = new PrintWriter(file);
-        } catch (IOException e) {
-            System.out.println("File not found for writer!");
-            e.printStackTrace();
-        }
-        
+
         try {
             String line;
-            Integer queryNumber = 1;
+            Integer queryCounter = 1;
             while ((line = br.readLine()) != null) {
-                System.out.println("Processing query number: " + queryNumber);
+                System.out.println("Processing query number: " + queryCounter);
                 Map<String, Map<String, Integer>> queryStats = new HashMap<>();
                 ArrayList<String> queryTerms = qp.parseQuery(line);
                 System.out.println("Terms in query: " + queryTerms.size());
-                
-                Integer queryCounter = 1;
+                Integer queryNumber = Integer.parseInt(queryTerms.get(0));
+                queryTerms.remove(0);
+
                 for (String query : queryTerms) {
-                    System.out.println("Getting stats for term " + queryCounter 
-                            + " in query " + queryNumber);
+                    System.out.println("Getting stats for term " + query
+                            + " in query " + queryCounter);
                     Map<String, Integer> termStats = getTermStats(query);
                     queryStats.put(query, termStats);
-                    queryCounter++;
                 }
                 System.out.println("Finished getting stats for query terms.");
-                printModelResults(queryStats, pw, queryNumber);
-                queryNumber++;
+                printModelResults(queryStats, queryNumber);
+                queryCounter++;
             }
-        }catch (IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
-        
+
         try {
             br.close();
-            pw.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     private static void printModelResults(
-            Map<String, Map<String, Integer>> queryStats, PrintWriter bw, Integer queryNumber) {
+            Map<String, Map<String, Integer>> queryStats, Integer queryNumber) {
         Models models = new Models();
- 
-        System.out.println("Starting Okapi TF");
-        Map<String, Double> resultsMap = models.okapiTF(queryStats);
-        writeToFile(bw, queryNumber, resultsMap);
-        
-        System.out.println("Starting TF-IDF");
-        resultsMap = models.tfIdf(queryStats);
-        writeToFile(bw, queryNumber, resultsMap);
-        
-        System.out.println("Starting Okapi BM25");
-        resultsMap = models.okapiBM25(queryStats);
-        writeToFile(bw, queryNumber, resultsMap);
-        
-        System.out.println("Starting LM-Laplace");
-        resultsMap = models.LMLaplace(queryStats);
-        writeToFile(bw, queryNumber, resultsMap);
-        
-        System.out.println("Starting LM-JM");
-        resultsMap = models.LMJM(queryStats);
-        writeToFile(bw, queryNumber, resultsMap);
+        Map<String, Double> resultsMap;
+
+        // System.out.println("Starting Okapi TF");
+        // resultsMap = models.okapiTF(queryStats);
+        // writeToFile(queryNumber, resultsMap, "okapiTF");
+        //
+        // System.out.println("Starting TF-IDF");
+        // resultsMap = models.tfIdf(queryStats);
+        // writeToFile(queryNumber, resultsMap, "TFIDF");
+
+        // System.out.println("Starting Okapi BM25");
+        // resultsMap = models.okapiBM25(queryStats);
+        // writeToFile(queryNumber, resultsMap, "OkapiBM25");
+
+        // System.out.println("Starting LM-Laplace");
+        // resultsMap = models.LMLaplace(queryStats);
+        // writeToFile(queryNumber, resultsMap, "LMLaplace1");
+
+        for (double i = 1; i <= 10; i++) {
+            System.out.println("Starting LM-JM " + i);
+            resultsMap = models.LMJM(queryStats, i / 10);
+            writeToFile(queryNumber, resultsMap, "LMJM" + i);
+        }
     }
 
-    private static void writeToFile(PrintWriter bw, Integer queryNumber,
-            Map<String, Double> resultsMap) {
+    private static void writeToFile(Integer queryNumber,
+            Map<String, Double> resultsMap, String fileName) {
+
+        FileWriter pw = null;
+        try {
+            pw = new FileWriter(fileName, true);
+        } catch (IOException e) {
+            System.out.println("File not found for writer!");
+            e.printStackTrace();
+        }
+
         Iterator resultsMapIt = resultsMap.entrySet().iterator();
         Integer rank = 1;
         Integer counter = 1;
-        while (counter <= 100 && resultsMapIt.hasNext()) {
-            Map.Entry pair = (Map.Entry)resultsMapIt.next();
+        while ((counter <= 100) && resultsMapIt.hasNext()) {
+            Map.Entry pair = (Map.Entry) resultsMapIt.next();
             String docId = (String) pair.getKey();
             Double score = (Double) pair.getValue();
-            String line = queryNumber + " Q0 " + docId + " " + rank + " " + score + " Exp";
-            bw.println(line);
+            String line = queryNumber + " Q0 " + docId + " " + rank + " "
+                    + score + " Exp";
+            try {
+                pw.write(line + "\n");
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
             rank++;
             counter++;
+        }
+
+        try {
+            pw.close();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
     }
 
@@ -288,9 +304,10 @@ public class Main {
         results.put("ttf", ttf);
         return results;
     }
-    
+
     /**
      * Helper function for getting the term frequency from the explanation
+     *
      * @param explanation
      * @return
      */
@@ -346,7 +363,7 @@ public class Main {
      */
     private static StatisticalFacet getStatsOnTextTerms(Client client,
             String index, String type, String matchedField, String matchedValue)
-            throws IOException {
+                    throws IOException {
         XContentBuilder facetsBuilder;
         if ((matchedField == null) && (matchedValue == null)) {
             facetsBuilder = getStatsTermsBuilder();
@@ -374,11 +391,11 @@ public class Main {
             String matchField, String matchValue) throws IOException {
         XContentBuilder builder = XContentFactory.jsonBuilder();
         builder.startObject().startObject("query").startObject("match")
-                .field(matchField, matchValue).endObject().endObject()
-                .startObject("facets").startObject("text")
-                .startObject("statistical")
-                .field("script", "doc['text'].values.size()").endObject()
-                .endObject().endObject().endObject();
+        .field(matchField, matchValue).endObject().endObject()
+        .startObject("facets").startObject("text")
+        .startObject("statistical")
+        .field("script", "doc['text'].values.size()").endObject()
+        .endObject().endObject().endObject();
         return builder;
     }
 
@@ -391,10 +408,10 @@ public class Main {
     private static XContentBuilder getStatsTermsBuilder() throws IOException {
         XContentBuilder builder = XContentFactory.jsonBuilder();
         builder.startObject().startObject("query").startObject("match_all")
-                .endObject().endObject().startObject("facets")
-                .startObject("text").startObject("statistical")
-                .field("script", "doc['text'].values.size()").endObject()
-                .endObject().endObject().endObject();
+        .endObject().endObject().startObject("facets")
+        .startObject("text").startObject("statistical")
+        .field("script", "doc['text'].values.size()").endObject()
+        .endObject().endObject().endObject();
         return builder;
     }
 

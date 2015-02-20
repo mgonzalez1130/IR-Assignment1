@@ -23,5 +23,3 @@
 80.   Document will identify something about the platform of a 1988 presidential  candidate.   
 63.   Document will identify a machine translation system.   
 91.   Document will identify acquisition by the U.S. Army of specified advanced weapons systems.   
-
-

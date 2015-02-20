@@ -20,6 +20,7 @@ public class QueryParser {
         String[] queryArray = query.split("\\s+");
         ArrayList<String> result = new ArrayList<String>();
 
+        result.add(queryArray[0]);
         for (int i = 4; i <= (queryArray.length - 1); i++) {
             if (stopList.contains(queryArray[i])) {
                 continue;
