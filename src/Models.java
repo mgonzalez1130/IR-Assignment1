@@ -20,6 +20,7 @@ public class Models {
     private static double B = 0;
     private static int df;
     private static int ttf;
+    private static int collectionLength = 14054610;
 
     public Models() {
         docLengths = deserializeDocLengths();
@@ -35,14 +36,18 @@ public class Models {
             Map<String, Integer> queryTermStats = termStats.get(queryTerm);
 
             ttf = queryTermStats.get("ttf");
-            queryTermStats.remove("ttf");
             df = queryTermStats.get("df");
-            queryTermStats.remove("df");
 
             // iterate through map containing df, ttf, and tf's for all
             // documents that matched
             // the current queryTerm
             for (String docId : queryTermStats.keySet()) {
+                if (docId == "ttf") {
+                    continue;
+                }
+                if (docId == "df") {
+                    continue;
+                }
                 Integer tf = queryTermStats.get(docId);
 
                 if (!results.containsKey(docId)) {
@@ -68,15 +73,19 @@ public class Models {
         for (String queryTerm : termStats.keySet()) {
             Map<String, Integer> queryTermStats = termStats.get(queryTerm);
 
-            // ttf = queryTermStats.get("ttf");
-            // queryTermStats.remove("ttf");
-            // df = queryTermStats.get("df");
-            // queryTermStats.remove("df");
+            ttf = queryTermStats.get("ttf");
+            df = queryTermStats.get("df");
 
             // iterate through map containing df, ttf, and tf's for all
             // documents that matched
             // the current queryTerm
             for (String docId : queryTermStats.keySet()) {
+                if (docId == "ttf") {
+                    continue;
+                }
+                if (docId == "df") {
+                    continue;
+                }
                 Integer tf = queryTermStats.get(docId);
 
                 if (!results.containsKey(docId)) {
@@ -105,14 +114,18 @@ public class Models {
             Map<String, Integer> queryTermStats = termStats.get(queryTerm);
 
             ttf = queryTermStats.get("ttf");
-            queryTermStats.remove("ttf");
             df = queryTermStats.get("df");
-            queryTermStats.remove("df");
 
             // iterate through map containing df, ttf, and tf's for all
             // documents that matched
             // the current queryTerm
             for (String docId : queryTermStats.keySet()) {
+                if (docId == "ttf") {
+                    continue;
+                }
+                if (docId == "df") {
+                    continue;
+                }
                 Integer tf = queryTermStats.get(docId);
 
                 if (!results.containsKey(docId)) {
@@ -143,15 +156,19 @@ public class Models {
         for (String queryTerm : termStats.keySet()) {
             Map<String, Integer> queryTermStats = termStats.get(queryTerm);
 
-            // ttf = queryTermStats.get("ttf");
-            // queryTermStats.remove("ttf");
-            // df = queryTermStats.get("df");
-            // queryTermStats.remove("df");
+            ttf = queryTermStats.get("ttf");
+            df = queryTermStats.get("df");
 
             // iterate through map containing df, ttf, and tf's for all
             // documents that matched
             // the current queryTerm
             for (String docId : queryTermStats.keySet()) {
+                if (docId == "ttf") {
+                    continue;
+                }
+                if (docId == "df") {
+                    continue;
+                }
                 Integer tf = queryTermStats.get(docId);
 
                 if (!results.containsKey(docId)) {
@@ -188,22 +205,32 @@ public class Models {
             Map<String, Map<String, Integer>> termStats, double lambda) {
         HashMap<String, Double> results = new HashMap<>();
 
+        // System.out.println("Size before getting cl: " + docLengths.size());
+        // Integer collectionLength = 0;
+        // for (String docId : docLengths.keySet()) {
+        // collectionLength += docLengths.get(docId);
+        // }
+        // System.out.println("collection length: " + collectionLength);
+        // System.out.println("new size: " + docLengths.size());
+
         // iterate through the statistical results for each query term in the
         // query
         for (String queryTerm : termStats.keySet()) {
             Map<String, Integer> queryTermStats = termStats.get(queryTerm);
 
-            if (lambda == 0.1) {
-                ttf = queryTermStats.get("ttf");
-                queryTermStats.remove("ttf");
-                df = queryTermStats.get("df");
-                queryTermStats.remove("df");
-            }
+            ttf = queryTermStats.get("ttf");
+            df = queryTermStats.get("df");
 
             // iterate through map containing df, ttf, and tf's for all
             // documents that matched
             // the current queryTerm
             for (String docId : queryTermStats.keySet()) {
+                if (docId == "ttf") {
+                    continue;
+                }
+                if (docId == "df") {
+                    continue;
+                }
                 Integer tf = queryTermStats.get(docId);
 
                 if (!results.containsKey(docId)) {
@@ -211,33 +238,18 @@ public class Models {
                 }
 
                 double currentDocLength = docLengths.get(docId);
-                // double lambda = currentDocLength
-                // / (currentDocLength + avgDocLength);
+                lambda = currentDocLength / (currentDocLength + avgDocLength);
                 double term1 = lambda * (tf / currentDocLength);
-                double term2 = (1 - lambda) * (ttf / vocabSize);
+                double term2 = (1 - lambda) * (ttf / collectionLength);
                 double LMJMScore = Math.log(term1 + term2);
 
                 results.put(docId, results.get(docId) + LMJMScore);
-                // System.out.println("LM with JM smoothing score for " + docId
+                // System.out.println("LM with JM smoothing score for " +
+                // docId
                 // + ": " + LMJMScore);
+
             }
         }
-
-        // for (String queryTerm : termStats.keySet()) {
-        // Map<String, Integer> queryTermStats = termStats.get(queryTerm);
-        // for (String resultsDocId : results.keySet()) {
-        // if (!queryTermStats.keySet().contains(resultsDocId)) {
-        // Integer tf = 0;
-        // double currentDocLength = docLengths.get(resultsDocId);
-        // double term1 = lambda * (tf / currentDocLength);
-        // double term2 = (1 - lambda) * (ttf / vocabSize);
-        // double LMJMScore = Math.log(term1 + term2);
-        //
-        // results.put(resultsDocId, results.get(resultsDocId)
-        // + LMJMScore);
-        // }
-        // }
-        // }
         return sortHashMapByValues(results);
     }
 

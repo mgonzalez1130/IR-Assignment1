@@ -39,8 +39,8 @@ public class Main {
     private static final int NUM_OF_QUERIES = 25;
 
     static Client client = new TransportClient()
-    .addTransportAddress(new InetSocketTransportAddress("10.0.0.12",
-            9300));
+            .addTransportAddress(new InetSocketTransportAddress("10.0.0.12",
+                    9300));
 
     public static void main(String[] args) throws IOException {
 
@@ -62,12 +62,7 @@ public class Main {
         try {
             br = new BufferedReader(new FileReader(
                     "query_desc.51-100.short.txt"));
-        } catch (IOException e) {
-            System.out.println("File not found!");
-            e.printStackTrace();
-        }
 
-        try {
             String line;
             Integer queryCounter = 1;
             while ((line = br.readLine()) != null) {
@@ -90,12 +85,12 @@ public class Main {
             }
         } catch (IOException e) {
             e.printStackTrace();
-        }
-
-        try {
-            br.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+        } finally {
+            try {
+                br.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -104,27 +99,27 @@ public class Main {
         Models models = new Models();
         Map<String, Double> resultsMap;
 
-        // System.out.println("Starting Okapi TF");
-        // resultsMap = models.okapiTF(queryStats);
-        // writeToFile(queryNumber, resultsMap, "okapiTF");
-        //
-        // System.out.println("Starting TF-IDF");
-        // resultsMap = models.tfIdf(queryStats);
-        // writeToFile(queryNumber, resultsMap, "TFIDF");
+        System.out.println("Starting Okapi TF");
+        resultsMap = models.okapiTF(queryStats);
+        writeToFile(queryNumber, resultsMap, "okapiTF");
 
-        // System.out.println("Starting Okapi BM25");
-        // resultsMap = models.okapiBM25(queryStats);
-        // writeToFile(queryNumber, resultsMap, "OkapiBM25");
+        System.out.println("Starting TF-IDF");
+        resultsMap = models.tfIdf(queryStats);
+        writeToFile(queryNumber, resultsMap, "TFIDF");
 
-        // System.out.println("Starting LM-Laplace");
-        // resultsMap = models.LMLaplace(queryStats);
-        // writeToFile(queryNumber, resultsMap, "LMLaplace1");
+        System.out.println("Starting Okapi BM25");
+        resultsMap = models.okapiBM25(queryStats);
+        writeToFile(queryNumber, resultsMap, "OkapiBM25");
 
-        for (double i = 1; i <= 10; i++) {
-            System.out.println("Starting LM-JM " + i);
-            resultsMap = models.LMJM(queryStats, i / 10);
-            writeToFile(queryNumber, resultsMap, "LMJM" + i);
-        }
+        System.out.println("Starting LM-Laplace");
+        resultsMap = models.LMLaplace(queryStats);
+        writeToFile(queryNumber, resultsMap, "LMLaplace1");
+
+        // for (double i = 1; i <= 10; i += 1) {
+        System.out.println("Starting LM-JM");
+        resultsMap = models.LMJM(queryStats, 0);
+        writeToFile(queryNumber, resultsMap, "LMJM");
+        // }
     }
 
     private static void writeToFile(Integer queryNumber,
@@ -133,35 +128,33 @@ public class Main {
         FileWriter pw = null;
         try {
             pw = new FileWriter(fileName, true);
+
+            Iterator resultsMapIt = resultsMap.entrySet().iterator();
+            Integer rank = 1;
+            Integer counter = 1;
+            while ((counter <= 100) && resultsMapIt.hasNext()) {
+                Map.Entry pair = (Map.Entry) resultsMapIt.next();
+                String docId = (String) pair.getKey();
+                Double score = (Double) pair.getValue();
+                String line = queryNumber + " Q0 " + docId + " " + rank + " "
+                        + score + " Exp";
+                try {
+                    pw.write(line + "\n");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                rank++;
+                counter++;
+            }
         } catch (IOException e) {
             System.out.println("File not found for writer!");
             e.printStackTrace();
-        }
-
-        Iterator resultsMapIt = resultsMap.entrySet().iterator();
-        Integer rank = 1;
-        Integer counter = 1;
-        while ((counter <= 100) && resultsMapIt.hasNext()) {
-            Map.Entry pair = (Map.Entry) resultsMapIt.next();
-            String docId = (String) pair.getKey();
-            Double score = (Double) pair.getValue();
-            String line = queryNumber + " Q0 " + docId + " " + rank + " "
-                    + score + " Exp";
+        } finally {
             try {
-                pw.write(line + "\n");
+                pw.close();
             } catch (IOException e) {
-                // TODO Auto-generated catch block
                 e.printStackTrace();
             }
-            rank++;
-            counter++;
-        }
-
-        try {
-            pw.close();
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
         }
     }
 
@@ -241,13 +234,16 @@ public class Main {
      */
     private static void serializeDocLengths() throws IOException {
         Iterator it = docLengths.entrySet().iterator();
+        Integer collectionLength = 0;
         while (it.hasNext()) {
             Map.Entry pair = (Map.Entry) it.next();
             String docId = (String) pair.getKey();
             Integer docLength = (int) getStatsOnTextTerms(client, "ap_dataset",
                     "document", "_id", docId).getTotal();
             docLengths.put(docId, docLength);
+            collectionLength += docLength;
         }
+        docLengths.put("collectionLength", collectionLength);
 
         try {
             FileOutputStream fileOut = new FileOutputStream("docLenghts.ser");
@@ -282,7 +278,7 @@ public class Main {
                 .setSearchType(SearchType.DFS_QUERY_THEN_FETCH)
                 .setScroll(new TimeValue(60000))
                 .setQuery(QueryBuilders.matchQuery("text", queryTerm))
-                .setExplain(true).setSize(1000).execute().actionGet();
+                .setExplain(true).setSize(85000).execute().actionGet();
 
         Integer df = (int) scrollResp.getHits().getTotalHits();
         // System.out.println("Executed search");
@@ -363,7 +359,7 @@ public class Main {
      */
     private static StatisticalFacet getStatsOnTextTerms(Client client,
             String index, String type, String matchedField, String matchedValue)
-                    throws IOException {
+            throws IOException {
         XContentBuilder facetsBuilder;
         if ((matchedField == null) && (matchedValue == null)) {
             facetsBuilder = getStatsTermsBuilder();
@@ -391,11 +387,11 @@ public class Main {
             String matchField, String matchValue) throws IOException {
         XContentBuilder builder = XContentFactory.jsonBuilder();
         builder.startObject().startObject("query").startObject("match")
-        .field(matchField, matchValue).endObject().endObject()
-        .startObject("facets").startObject("text")
-        .startObject("statistical")
-        .field("script", "doc['text'].values.size()").endObject()
-        .endObject().endObject().endObject();
+                .field(matchField, matchValue).endObject().endObject()
+                .startObject("facets").startObject("text")
+                .startObject("statistical")
+                .field("script", "doc['text'].values.size()").endObject()
+                .endObject().endObject().endObject();
         return builder;
     }
 
@@ -408,10 +404,10 @@ public class Main {
     private static XContentBuilder getStatsTermsBuilder() throws IOException {
         XContentBuilder builder = XContentFactory.jsonBuilder();
         builder.startObject().startObject("query").startObject("match_all")
-        .endObject().endObject().startObject("facets")
-        .startObject("text").startObject("statistical")
-        .field("script", "doc['text'].values.size()").endObject()
-        .endObject().endObject().endObject();
+                .endObject().endObject().startObject("facets")
+                .startObject("text").startObject("statistical")
+                .field("script", "doc['text'].values.size()").endObject()
+                .endObject().endObject().endObject();
         return builder;
     }
 
